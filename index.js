@@ -230,7 +230,7 @@ router.get('/', (req, res) => {
     GET /channel/:channel/PATH?key=KEY -> <data>
     GET /channel/:channel/?key=KEY&prefix=PREFIX -> <data>
 
-    ### Setting Up Channels and Prefixes
+  ### Setting Up Channels and Prefixes
     NOTE: Prefixes use express-router logic, see: http://forbeslindesay.github.io/express-route-tester/
 
     GET /create/:channel
