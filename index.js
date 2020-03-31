@@ -246,7 +246,7 @@ function listMessages(req, res, category) {
     set[key] = list
   }
 
-  const data = JSON.stringify(set)
+  const data = JSON.stringify(set, null, '\t')
   complete(req, res, state, data)
 }
 
