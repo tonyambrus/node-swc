@@ -214,75 +214,75 @@ router.use(bodyParser.raw({ limit: '10mb', type: () => true }))
 router.get('/', (req, res) => {
   res.statusCode = 200;
   res.end(`
-  [CONTENTS]
-    GET /create/:channel
-    GET /remove/:channel
+  ### Overview
+    GET /create/:channel?key=KEY
+    GET /remove/:channel?key=KEY
 
-    GET /create/:channel/public?prefix
-    GET /remove/:channel/public?prefix
+    GET /create/:channel/public?key=KEY&prefix=PREFIX
+    GET /remove/:channel/public?key=KEY&prefix=PREFIX
 
-    GET /create/:channel/private?prefix
-    GET /remove/:channel/private?prefix
+    GET /create/:channel/private?key=KEY&prefix=PREFIX
+    GET /remove/:channel/private?key=KEY&prefix=PREFIX
 
     POST /channel/:channel/* (BODY:<data>)
     
-    GET /channel/:channel/<prefix> -> <data>
-    GET /channel/:channel/<prefix>#<key> -> <data>
-    GET /channel/:channel/?prefix#key -> <data>
+    GET /channel/:channel/PATH -> <data>
+    GET /channel/:channel/PATH?key=KEY -> <data>
+    GET /channel/:channel/?key=KEY&prefix=PREFIX -> <data>
 
-  [SETTING UP CHANNELS AND PREFIXES]
+    ### Setting Up Channels and Prefixes
     NOTE: Prefixes use express-router logic, see: http://forbeslindesay.github.io/express-route-tester/
 
     GET /create/:channel
       Creates a new channel with a user-specified channel key
-      Example: GET /create/myChannel/1234
+      Example: GET /create/myChannel?key=1234
 
     GET /remove/:channel
       Removes an existing channel
-      Example: GET /remove/myChannel/1234
+      Example: GET /remove/myChannel?key=1234
 
     GET /create/:channel/public?prefix
       Creates a public prefix that anyone can retrieve messages from
-      Example: GET /create/myChannel/1234/public?client/:fromClient/:toClient
+      Example: GET /create/myChannel/public?key=1234&prefix=client/:fromClient/:toClient
 
     GET /remove/:channel/public?prefix
       Removes a public prefix
-      Example: GET /remove/myChannel/1234/public?client/:fromClient/:toClient
+      Example: GET /remove/myChannel/public?key=KEY&prefix=client/:fromClient/:toClient
 
     GET /create/:channel/private?prefix
       Creates a private prefix that requires channel key to retreive messages from
-      Example: GET /remove/myChannel/1234/private?server/:clientId/*
+      Example: GET /remove/myChannel/private?key=KEY&prefix=server/:clientId/*
 
     GET /remove/:channel/private?prefix
       Removes a private prefix
-      Example: GET /remove/myChannel/1234/private?server/:clientId/*
+      Example: GET /remove/myChannel/private?key=KEY&prefix=server/:clientId/*
 
-  [POSTING MESSAGES]
+  ### Posting Messages
     POST /channel/:channel/* (BODY:<data>)
       Posts a message to the message queue of the prefix (regardless of if it's a public or private prefix)
       Example: POST /channel/myChannel/server/client1/new (BODY:client1 just joined)
       Example: POST /channel/myChannel/server/client2/new (BODY:client2 just joined)
       Example: POST /channel/myChannel/client/client1/client2 (BODY:message for client1 from client2)
     
-  [RETRIEVING PUBLIC MESSAGES]
+  ### Retrieving Public Messages
     GET /channel/:channel/<prefix> -> <data>
       Gets the next message if available. Returns 404 if doesn't exist/empty. Returns 403 if actually a private prefix
       Example: GET /myChannel/client/client1/client2
       ['Prefix'] = myChannel
  
-  [RETRIVING PRIVATE MESSAGES] (i.e. channels created via GET /create/:channel/:key/private?prefix)
-    GET /channel/:channel/<prefix>#<key> -> <data>
+  ### Retrieving Private Messages
+    GET /channel/:channel/PATH?key=KEY -> <data>
       Gets the next message if available for specific <prefix>. Returns 404 if doesn't exist/empty. Returns 403 if incorrect key
-      Example: GET /myChannel/server/client1/new
+      Example: GET /myChannel/server/client1/new?key=1234
       ['Prefix'] = myChannel
       ['Channel'] = server/client1/new
 
-    GET /channel/:channel/?prefix#key -> <data>
+    GET /channel/:channel/?key=KEY&prefix=PREFIX -> <data>
       Gets the next message if available for generic path prefix.
       Returns 404 if doesn't exist/empty.
       Returns 403 if actually a private prefix
       Returns posting url in header 'Prefix'
-      Example: GET /myChannel/?server/:clientId/*#1234  
+      Example: GET /myChannel?key=1234&prefix=server/:clientId/*
         ['Prefix'] = myChannel
         ['Channel'] = server/client1/new
   `);

@@ -3,4 +3,6 @@
         "node_modules{,/**}",
         ".vscode{,/**}"
     ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/a0f87062-570d-4ec1-9065-5604e2cc7483/resourceGroups/appsvc_linux_centralus/providers/Microsoft.Web/sites/node-swc",
+    "appService.deploySubpath": "",
 }
