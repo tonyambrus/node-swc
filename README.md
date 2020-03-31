@@ -69,6 +69,12 @@ GET /remove/:channel/private?prefix
     Removes a private prefix
     Example: GET /remove/myChannel/private?key=KEY&prefix=server/:clientId/*
 
+GET /list/:channel/private?key=KEY -> <data>
+    Lists all private messages currently for that channel
+
+GET /list/:channel/public?key=KEY -> <data>
+    Lists all public messages currently for that channel
+
 ### Posting Messages
 POST /channel/:channel/* (BODY:<data>)
     Posts a message to the message queue of the prefix (regardless of if it's a public or private prefix)

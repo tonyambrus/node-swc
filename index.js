@@ -3,7 +3,7 @@ const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const debug = require('debug')('swc')
 const express = require('express')
-const querystring = require('querystring');
+const querystring = require('querystring')
 
 const app = express()
 const router = express.Router()
@@ -27,9 +27,9 @@ const morganDebugStream = new stream.Writable({
 ////////////////////////////////////////////////////////////////////////
 const PRIVATE = 'private'
 const PUBLIC = 'public'
-const requiresKey = (category) => category == PRIVATE;
-const getRoutePath = (channelId, prefix) => '/channel/' + channelId + '/' + prefix;
-const parseQuery = (req) => querystring.parse(req._parsedUrl.query);
+const requiresKey = (category) => category == PRIVATE
+const getRoutePath = (channelId, prefix) => '/channel/' + channelId + '/' + prefix
+const parseQuery = (req) => querystring.parse(req._parsedUrl.query)
 const pathToPrefixRegex = /^\/channel\/[^\/]+\/(.*)\/?$/i
 
 function complete(req, res, state, data) {
@@ -45,10 +45,10 @@ function complete(req, res, state, data) {
 }
 
 function validateState(req, channelId, key, prefix, category) {
-  const args = {channelId, key, prefix, category};
+  const args = {channelId, key, prefix, category}
   let state = {valid: true, statusCode: 200, args}
 
-  state.channel = router.__channels[channelId];
+  state.channel = router.__channels[channelId]
   if (!state.channel) {
     return {valid: false, statusCode: 404}
   }
@@ -58,13 +58,13 @@ function validateState(req, channelId, key, prefix, category) {
   }
   
   if (category !== null) {
-    state.prefixes = state.channel[category];
+    state.prefixes = state.channel[category]
     if (!state.prefixes) {
       return {valid: false, statusCode: 404}
     }
 
     if (prefix) {
-      state.messageQueue = state.prefixes[prefix];
+      state.messageQueue = state.prefixes[prefix]
       if (!state.messageQueue) {
         return {valid: false, statusCode: 404}
       }
@@ -72,14 +72,14 @@ function validateState(req, channelId, key, prefix, category) {
   }
 
   if (prefix) {
-    const path = req._parsedUrl.pathname;
-    const match = path.match(pathToPrefixRegex);
+    const path = req._parsedUrl.pathname
+    const match = path.match(pathToPrefixRegex)
     if (match) {
       state.path = match[1]
     }
   }
   
-  return state;
+  return state
 }
 
 function createChannel(req, res) {
@@ -96,7 +96,7 @@ function createChannel(req, res) {
     state.statusCode = 200
   }
   
-  complete(req, res, state);
+  complete(req, res, state)
 }
 
 function removeChannel(req, res) {
@@ -108,10 +108,10 @@ function removeChannel(req, res) {
   if (state.valid) {   
     removeRoutes(channelId, state.channel[PRIVATE])
     removeRoutes(channelId, state.channel[PUBLIC])
-    delete router.__channels[channelId];
+    delete router.__channels[channelId]
   }
   
-  complete(req, res, state);
+  complete(req, res, state)
 }
 
 function createPrefix(req, res, category) {
@@ -122,11 +122,11 @@ function createPrefix(req, res, category) {
 
   const state = validateState(req, channelId, key, null, category)
   if (state.valid) {
-    state.prefixes[prefix] = [];
-    addRoute(channelId, prefix, category);
+    state.prefixes[prefix] = []
+    addRoute(channelId, prefix, category)
   }
   
-  complete(req, res, state);
+  complete(req, res, state)
 }
 
 function removePrefix(req, res, category) {
@@ -137,11 +137,11 @@ function removePrefix(req, res, category) {
 
   const state = validateState(req, channelId, key, prefix, category)
   if (state.valid) {   
-    removeRoute(channelId, prefix, category);
+    removeRoute(channelId, prefix, category)
     delete state.prefixes[prefix]
   }
   
-  complete(req, res, state);
+  complete(req, res, state)
 }
 
 function postMessage(req, res, channelId, prefix, category) {
@@ -149,61 +149,107 @@ function postMessage(req, res, channelId, prefix, category) {
   if (state.valid) {   
     state.messageQueue.push({
       path: state.path,
+      contentType: req.headers['content-type'],
       body: req.body
-    });
+    })
   }
 
-  complete(req, res, state);
+  complete(req, res, state)
 }
 
 function getMessage(req, res, channelId, prefix, category) {
   const query = parseQuery(req)
-  const key = requiresKey(category) ? (query.key || "") : null;
-  prefix = query.prefix || prefix;
+  const key = requiresKey(category) ? (query.key || "") : null
+  prefix = query.prefix || prefix
 
   const state = validateState(req, channelId, key, prefix, category)
   if (!state.valid) {
-    complete(req, res, state);
+    complete(req, res, state)
     return
   }
 
-  const data = state.messageQueue.shift();
+  const data = state.messageQueue.shift()
   if (data === undefined) {
     state.statusCode = 404
     complete(req, res, state)
     return
   }
 
-  state.path = data.path;
-  complete(req, res, state, data.body);
+  state.path = data.path
+  complete(req, res, state, data.body)
 }
 
 function addRoute(channelId, prefix, category) {
-  removeRoute(channelId, prefix, category);
+  removeRoute(channelId, prefix, category)
 
-  const path = getRoutePath(channelId, prefix);
+  const path = getRoutePath(channelId, prefix)
   router.get(path, (req, res) => getMessage(req, res, channelId, prefix, category))
   router.post(path, (req, res) => postMessage(req, res, channelId, prefix, category))
 }
 
 function removeRoute(channelId, prefix, category) {
-  const path = getRoutePath(channelId, prefix);
+  const path = getRoutePath(channelId, prefix)
 
   for (var i = router.stack.length - 1; i >= 0; --i) {
-    const layer = router.stack[i];
+    const layer = router.stack[i]
     if (layer.route && layer.route.path == path) {
-      router.stack.splice(i, 1);
+      router.stack.splice(i, 1)
     }
   }
 
-  delete router.__state[path];
+  delete router.__state[path]
 }
 
 function removeRoutes(channelId, prefixes) {
   for (const prefix in Object.keys(prefixes)) {
-    removeRoute(channelId, prefix, true);
+    removeRoute(channelId, prefix, true)
   }
 }
+
+function parseBody(body, contentType) {
+  if (!(body instanceof Buffer)) {
+    throw "Unknown body type"
+  }
+  
+  if (contentType == "application/json") {
+    return JSON.parse(body.toString())
+  } else if (contentType.match(/^text\/.*$/i)) {
+    return body.toString()
+  } else {
+    return body
+  }
+}
+
+
+function listMessages(req, res, category) {
+  const channelId = req.params.channel
+  const query = parseQuery(req)
+  const key = query.key || ""
+
+  const state = validateState(req, channelId, key, null, category)
+  if (!state.valid) {
+    complete(req, res, state)
+    return
+  }
+
+  let set = {}
+  for (const key in state.prefixes) {
+    let list = []
+    state.prefixes[key].forEach(message => {
+      const msg = {
+        path: message.path,
+        contentType: message.contentType,
+        body: parseBody(message.body, message.contentType)
+      }
+      list.push(msg)
+    })
+    set[key] = list
+  }
+
+  const data = JSON.stringify(set)
+  complete(req, res, state, data)
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 // Host Setup
@@ -212,7 +258,7 @@ router.use(morgan('tiny', { stream: morganDebugStream }))
 router.use(bodyParser.raw({ limit: '10mb', type: () => true }))
 
 router.get('/', (req, res) => {
-  res.statusCode = 200;
+  res.statusCode = 200
   res.end(`
   ### Overview
     GET /create/:channel?key=KEY
@@ -229,6 +275,9 @@ router.get('/', (req, res) => {
     GET /channel/:channel/PATH -> <data>
     GET /channel/:channel/PATH?key=KEY -> <data>
     GET /channel/:channel/?key=KEY&prefix=PREFIX -> <data>
+
+    GET /list/:channel/private?key=KEY -> <data>
+    GET /list/:channel/public?key=KEY -> <data>
 
   ### Setting Up Channels and Prefixes
     NOTE: Prefixes use express-router logic, see: http://forbeslindesay.github.io/express-route-tester/
@@ -257,6 +306,10 @@ router.get('/', (req, res) => {
       Removes a private prefix
       Example: GET /remove/myChannel/private?key=KEY&prefix=server/:clientId/*
 
+    GET /list/:channel/private?key=KEY&content=[0,1] -> <data>
+      Lists all private messages currently on 
+    GET /list/:channel/public?key=KEY -> <data>
+  
   ### Posting Messages
     POST /channel/:channel/* (BODY:<data>)
       Posts a message to the message queue of the prefix (regardless of if it's a public or private prefix)
@@ -285,8 +338,8 @@ router.get('/', (req, res) => {
       Example: GET /myChannel?key=1234&prefix=server/:clientId/*
         ['Prefix'] = myChannel
         ['Channel'] = server/client1/new
-  `);
-});
+  `)
+})
 
 router.get('/create/:channel', createChannel)
 router.get('/remove/:channel', removeChannel)
@@ -295,5 +348,7 @@ router.get('/remove/:channel/private', (req, res) => removePrefix(req, res, PRIV
 router.get('/create/:channel/public', (req, res) => createPrefix(req, res, PUBLIC))
 router.get('/remove/:channel/public', (req, res) => removePrefix(req, res, PUBLIC))
 router.get('/channel/:channel/', (req, res) => getMessage(req, res, req.params.channel, "", PRIVATE))
+router.get('/list/:channel/private', (req, res) => listMessages(req, res, PRIVATE))
+router.get('/list/:channel/public', (req, res) => listMessages(req, res, PUBLIC))
 
 module.exports = router
