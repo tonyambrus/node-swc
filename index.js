@@ -57,15 +57,18 @@ function getRequestIp(request) {
 
 function complete(req, res, state, data) {
     if (state.valid) {
-      res.setHeader('Channel', state.args.channelId)
-      res.setHeader('Params', JSON.stringify(req.params))
+      res.setHeader('channel', state.args.channelId)
+
 
       if (state.path) {
-        res.setHeader('Prefix', state.path)
+        res.setHeader('prefix', state.path)
       }
 
       if (state.message) {
-        res.setHeader('Request-IP', state.message.requestIp)
+        res.setHeader('request-ip', state.message.requestIp)
+        res.setHeader('params', JSON.stringify(state.message.params))
+      } else {
+        res.setHeader('params', JSON.stringify(req.params))
       }
     }
 
@@ -180,7 +183,8 @@ function postMessage(req, res, channelId, prefix, category) {
       path: state.path,
       contentType: req.headers['content-type'],
       body: req.body,
-      requestIp: getRequestIp(req)
+      requestIp: getRequestIp(req),
+      params: req.params
     })
   }
 
@@ -271,7 +275,8 @@ function listMessages(req, res, category) {
         path: message.path,
         contentType: message.contentType,
         body: parseBody(message.body, message.contentType),
-        requestIp: message.requestIp
+        requestIp: message.requestIp,
+        params: message.params
       }
       list.push(msg)
     })
