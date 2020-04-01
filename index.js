@@ -37,6 +37,7 @@ function complete(req, res, state, data) {
       res.setHeader('Channel', state.args.channelId)
       if (state.path) {
         res.setHeader('Prefix', state.path)
+        res.setHeader('Params', JSON.stringify(req.params))
       }
     }
 

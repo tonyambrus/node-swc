@@ -111,7 +111,7 @@ describe('node-swc', () => {
         .expect(200, done)
     })
 
-    it('404 remove non-existant private prefix', (done) => {
+    it('404 remove non-existent private prefix', (done) => {
       agent
         .get('/remove/test/private?key=1234&prefix=data/:hostId')
         .expect(404, done)
@@ -158,7 +158,10 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testclient')
         .expect(200)
-        .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' }))
+        .then((response) => {
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), { clientId: 'testclient' });
+          assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' });
+        })
         .then(done, done)  
     })
 
@@ -166,7 +169,10 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testclient')
         .expect(200)
-        .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' }))
+        .then((response) => {
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), { clientId: 'testclient' });
+          assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' });
+        })
         .then(done, done)  
     })
 
@@ -337,7 +343,11 @@ describe('node-swc', () => {
         .get('/channel/test/data/variable/path/1?key=1234')
         .expect(200)
         .expect('Channel', 'test')
-        .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' }))
+        .expect('Prefix', 'data/variable/path/1')
+        .then((response) => {
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), { '0': 'variable/path/1' });
+          assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' });
+        })
         .then(done, done)  
     })
 
@@ -347,7 +357,10 @@ describe('node-swc', () => {
         .expect(200)
         .expect('Channel', 'test')
         .expect('Prefix', 'data/path/for/post/2')
-        .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' }))
+        .then((response) => {
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), { channel: 'test' });
+          assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' });
+        })
         .then(done, done)  
     })
 
@@ -357,7 +370,10 @@ describe('node-swc', () => {
         .expect(200)
         .expect('Channel', 'test')
         .expect('Prefix', 'data/post3/path')
-        .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post3' }))
+        .then((response) => {
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), { channel: 'test' });
+          assert.deepStrictEqual(JSON.parse(response.text), { test: 'post3' });
+        })
         .then(done, done)  
     })
 
