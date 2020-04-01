@@ -4,6 +4,7 @@ const morgan = require('morgan')
 const debug = require('debug')('swc')
 const express = require('express')
 const querystring = require('querystring')
+const ipaddr = require('ipaddr.js')
 
 const app = express()
 const router = express.Router()
@@ -32,12 +33,39 @@ const getRoutePath = (channelId, prefix) => '/channel/' + channelId + '/' + pref
 const parseQuery = (req) => querystring.parse(req._parsedUrl.query)
 const pathToPrefixRegex = /^\/channel\/[^\/]+\/(.*)\/?$/i
 
+function getRequestIp(request) {
+  if (!request || !request.connection || !request.connection.remoteAddress) {
+    return "";
+  }
+
+  const remoteIp = request.connection.remoteAddress;
+  if (ipaddr.IPv4.isValid(remoteIp)) {
+    return remoteIp;
+  } 
+  
+  if (!ipaddr.IPv6.isValid(remoteIp)) {
+    return "";
+  }
+    
+  const ip = ipaddr.IPv6.parse(remoteIp);
+  if (ip.isIPv4MappedAddress()) {
+      return ip.toIPv4Address().toString();
+  }
+  
+  return ip.toString();
+}
+
 function complete(req, res, state, data) {
     if (state.valid) {
       res.setHeader('Channel', state.args.channelId)
+      res.setHeader('Params', JSON.stringify(req.params))
+
       if (state.path) {
         res.setHeader('Prefix', state.path)
-        res.setHeader('Params', JSON.stringify(req.params))
+      }
+
+      if (state.message) {
+        res.setHeader('Request-IP', state.message.requestIp)
       }
     }
 
@@ -79,7 +107,7 @@ function validateState(req, channelId, key, prefix, category) {
       state.path = match[1]
     }
   }
-  
+
   return state
 }
 
@@ -151,7 +179,8 @@ function postMessage(req, res, channelId, prefix, category) {
     state.messageQueue.push({
       path: state.path,
       contentType: req.headers['content-type'],
-      body: req.body
+      body: req.body,
+      requestIp: getRequestIp(req)
     })
   }
 
@@ -177,6 +206,7 @@ function getMessage(req, res, channelId, prefix, category) {
   }
 
   state.path = data.path
+  state.message = data
   complete(req, res, state, data.body)
 }
 
@@ -240,7 +270,8 @@ function listMessages(req, res, category) {
       const msg = {
         path: message.path,
         contentType: message.contentType,
-        body: parseBody(message.body, message.contentType)
+        body: parseBody(message.body, message.contentType),
+        requestIp: message.requestIp
       }
       list.push(msg)
     })

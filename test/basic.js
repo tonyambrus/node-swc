@@ -158,6 +158,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testclient')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .then((response) => {
           assert.deepStrictEqual(JSON.parse(response.headers['params']), { clientId: 'testclient' });
           assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' });
@@ -169,6 +170,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testclient')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .then((response) => {
           assert.deepStrictEqual(JSON.parse(response.headers['params']), { clientId: 'testclient' });
           assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' });
@@ -248,6 +250,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testhost?key=1234')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .expect('Channel', 'test')
         .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' }))
         .then(done, done)  
@@ -257,6 +260,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/testhost?key=1234')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .expect('Channel', 'test')
         .then((response) => assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' }))
         .then(done, done)  
@@ -342,6 +346,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test/data/variable/path/1?key=1234')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .expect('Channel', 'test')
         .expect('Prefix', 'data/variable/path/1')
         .then((response) => {
@@ -355,6 +360,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test?key=1234&prefix=data/*')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .expect('Channel', 'test')
         .expect('Prefix', 'data/path/for/post/2')
         .then((response) => {
@@ -368,6 +374,7 @@ describe('node-swc', () => {
       agent
         .get('/channel/test?key=1234&prefix=data/*')
         .expect(200)
+        .expect('request-ip', '127.0.0.1')
         .expect('Channel', 'test')
         .expect('Prefix', 'data/post3/path')
         .then((response) => {
@@ -449,9 +456,9 @@ describe('node-swc', () => {
         .then((response) => assert.deepStrictEqual(
           JSON.parse(response.text), 
           {"data/*":[
-            {"path":"data/variable/path/1","contentType":"application/json","body":{"test":"post1"}},
-            {"path":"data/path/for/post/2","contentType":"application/json","body":{"test":"post2"}},
-            {"path":"data/post3/path","contentType":"application/json","body":{"test":"post3"}}
+            {"path":"data/variable/path/1","contentType":"application/json","body":{"test":"post1"},"requestIp":"127.0.0.1"},
+            {"path":"data/path/for/post/2","contentType":"application/json","body":{"test":"post2"},"requestIp":"127.0.0.1"},
+            {"path":"data/post3/path","contentType":"application/json","body":{"test":"post3"},"requestIp":"127.0.0.1"}
           ]}))
         .then(done, done)  
     })
