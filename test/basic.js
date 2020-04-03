@@ -350,7 +350,7 @@ describe('node-swc', () => {
         .expect('Channel', 'test')
         .expect('Prefix', 'data/variable/path/1')
         .then((response) => {
-          assert.deepStrictEqual(JSON.parse(response.headers['params']), { '0': 'variable/path/1' });
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), {'0':'variable/path/1'});
           assert.deepStrictEqual(JSON.parse(response.text), { test: 'post1' });
         })
         .then(done, done)  
@@ -364,7 +364,7 @@ describe('node-swc', () => {
         .expect('Channel', 'test')
         .expect('Prefix', 'data/path/for/post/2')
         .then((response) => {
-          assert.deepStrictEqual(JSON.parse(response.headers['params']), { channel: 'test' });
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), {'0':'path/for/post/2'});
           assert.deepStrictEqual(JSON.parse(response.text), { test: 'post2' });
         })
         .then(done, done)  
@@ -378,7 +378,7 @@ describe('node-swc', () => {
         .expect('Channel', 'test')
         .expect('Prefix', 'data/post3/path')
         .then((response) => {
-          assert.deepStrictEqual(JSON.parse(response.headers['params']), { channel: 'test' });
+          assert.deepStrictEqual(JSON.parse(response.headers['params']), {'0':'post3/path'});
           assert.deepStrictEqual(JSON.parse(response.text), { test: 'post3' });
         })
         .then(done, done)  
@@ -456,11 +456,59 @@ describe('node-swc', () => {
         .then((response) => assert.deepStrictEqual(
           JSON.parse(response.text), 
           {"data/*":[
-            {"path":"data/variable/path/1","contentType":"application/json","body":{"test":"post1"},"requestIp":"127.0.0.1"},
-            {"path":"data/path/for/post/2","contentType":"application/json","body":{"test":"post2"},"requestIp":"127.0.0.1"},
-            {"path":"data/post3/path","contentType":"application/json","body":{"test":"post3"},"requestIp":"127.0.0.1"}
+            {path:"data/variable/path/1",contentType:"application/json",params:{'0':'variable/path/1'},body:{test:"post1"},requestIp:"127.0.0.1"},
+            {path:"data/path/for/post/2",contentType:"application/json",params:{'0':'path/for/post/2'},body:{test:"post2"},requestIp:"127.0.0.1"},
+            {path:"data/post3/path",contentType:"application/json",params:{'0':'post3/path'},body:{test:"post3"},requestIp:"127.0.0.1"}
           ]}))
         .then(done, done)  
     })
-  })    
+  })  
+  
+        
+  ///////////////////////////////////////////////////////////////////////////////
+  describe('post persistant message', () => {
+    const agent = request.agent(allocServer())
+
+    it('200 create channel', (done) => {
+      agent
+        .get('/create/test?key=1234')
+        .expect(200, done)
+    })
+
+    it('200 create persistant path', (done) => {
+      agent
+      .post('/create/test/persist?key=1234&path=index.html')
+      .send({test: 'post1'})
+      .expect(200, done)
+    })
+
+    it('200 GET (x1) persistant message', (done) => {
+      agent
+        .get('/channel/test/index.html')
+        .expect(200)
+        .then((response) => assert.deepStrictEqual(JSON.parse(response.text),  {test: 'post1'}))
+        .then(done, done)  
+    })
+
+    it('200 GET (x2) persistant message', (done) => {
+      agent
+        .get('/channel/test/index.html')
+        .expect(200)
+        .then((response) => assert.deepStrictEqual(JSON.parse(response.text),  {test: 'post1'}))
+        .then(done, done)  
+    })
+
+    it('200 remove persistant path', (done) => {
+      agent
+      .get('/remove/test/persist?key=1234&path=index.html')
+      .send({test: 'post1'})
+      .expect(200, done)
+    })
+    
+    it('404 GET persistant message after removal', (done) => {
+      agent
+        .get('/channel/test/index.html')
+        .expect(404, done)
+    })
+  })  
 })

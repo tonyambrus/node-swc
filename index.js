@@ -28,7 +28,9 @@ const morganDebugStream = new stream.Writable({
 ////////////////////////////////////////////////////////////////////////
 const PRIVATE = 'private'
 const PUBLIC = 'public'
+const PERSIST = 'persist'
 const requiresKey = (category) => category == PRIVATE
+const isPersistant = (category) => category == PERSIST
 const getRoutePath = (channelId, prefix) => '/channel/' + channelId + '/' + prefix
 const parseQuery = (req) => querystring.parse(req._parsedUrl.query)
 const pathToPrefixRegex = /^\/channel\/[^\/]+\/(.*)\/?$/i
@@ -56,23 +58,26 @@ function getRequestIp(request) {
 }
 
 function complete(req, res, state, data) {
+    const statusCode = state.statusCode
     if (state.valid) {
       res.setHeader('channel', state.args.channelId)
-
 
       if (state.path) {
         res.setHeader('prefix', state.path)
       }
 
-      if (state.message) {
-        res.setHeader('request-ip', state.message.requestIp)
-        res.setHeader('params', JSON.stringify(state.message.params))
-      } else {
-        res.setHeader('params', JSON.stringify(req.params))
-      }
+      const ip = state.message ? state.message.requestIp : getRequestIp(req);
+      res.setHeader('request-ip', ip)
+
+      const params = state.message ? state.message.params : req.params
+      res.setHeader('params', JSON.stringify(params))
+
+      debug(`[${ip}] ${statusCode} ${req.method} ${req.originalUrl}`)
+    } else {
+      debug(`[---.---.-.---] ${statusCode} ${req.method} ${req.originalUrl}`)
     }
 
-    res.statusCode = state.statusCode
+    res.statusCode = statusCode
     res.end(data)
 }
 
@@ -124,6 +129,7 @@ function createChannel(req, res) {
     let channel = {key}
     channel[PRIVATE] = {}
     channel[PUBLIC] = {}
+    channel[PERSIST] = {}
     router.__channels[channelId] = channel
     state.statusCode = 200
   }
@@ -176,6 +182,37 @@ function removePrefix(req, res, category) {
   complete(req, res, state)
 }
 
+function createPersistantMessage(req, res) {
+  const channelId = req.params.channel
+  const query = parseQuery(req)
+  const key = query.key
+  const path = query.path
+
+  const state = validateState(req, channelId, key, null, PERSIST)
+  if (state.valid) {
+    state.prefixes[path] = []
+    addRoutes(channelId, path, PERSIST, {get: true})
+    postMessage(req, res, channelId, path, PERSIST)
+  }
+  
+  complete(req, res, state)
+}
+
+function removePersistantMessage(req, res) {
+  const channelId = req.params.channel
+  const query = parseQuery(req)
+  const key = query.key
+  const path = query.path
+
+  const state = validateState(req, channelId, key, path, PERSIST)
+  if (state.valid) {   
+    removeRoute(channelId, path, PERSIST)
+    delete state.prefixes[path]
+  }
+  
+  complete(req, res, state)
+}
+
 function postMessage(req, res, channelId, prefix, category) {
   const state = validateState(req, channelId, null, prefix, category)
   if (state.valid) {   
@@ -202,8 +239,20 @@ function getMessage(req, res, channelId, prefix, category) {
     return
   }
 
-  const data = state.messageQueue.shift()
-  if (data === undefined) {
+  if (state.messageQueue.length == 0) {
+    state.statusCode = 404
+    complete(req, res, state)
+    return
+  }
+
+  let data = null;
+  if (isPersistant(category)) {
+    data = state.messageQueue[0]
+  } else {
+    data = state.messageQueue.shift()
+  }
+
+  if (data == null) {
     state.statusCode = 404
     complete(req, res, state)
     return
@@ -214,12 +263,21 @@ function getMessage(req, res, channelId, prefix, category) {
   complete(req, res, state, data.body)
 }
 
-function addRoute(channelId, prefix, category) {
+function addRoutes(channelId, prefix, category, methods) {
   removeRoute(channelId, prefix, category)
 
   const path = getRoutePath(channelId, prefix)
-  router.get(path, (req, res) => getMessage(req, res, channelId, prefix, category))
-  router.post(path, (req, res) => postMessage(req, res, channelId, prefix, category))
+  if (methods.get) {
+    router.get(path, (req, res) => 
+      getMessage(req, res, channelId, prefix, category))
+  }
+  if (methods.post) {
+    router.post(path, (req, res) => postMessage(req, res, channelId, prefix, category))
+  }
+}
+
+function addRoute(channelId, prefix, category) {
+  addRoutes(channelId, prefix, category, {get: true, post: true})
 }
 
 function removeRoute(channelId, prefix, category) {
@@ -291,7 +349,7 @@ function listMessages(req, res, category) {
 ////////////////////////////////////////////////////////////////////////
 // Host Setup
 ////////////////////////////////////////////////////////////////////////
-router.use(morgan('tiny', { stream: morganDebugStream }))
+//router.use(morgan('tiny', { stream: morganDebugStream }))
 router.use(bodyParser.raw({ limit: '10mb', type: () => true }))
 
 router.get('/', (req, res) => {
@@ -306,6 +364,9 @@ router.get('/', (req, res) => {
 
     GET /create/:channel/private?key=KEY&prefix=PREFIX
     GET /remove/:channel/private?key=KEY&prefix=PREFIX
+
+    GET /create/:channel/persist?key=KEY&path=PATH
+    GET /remove/:channel/persist?key=KEY&path=PATH
 
     POST /channel/:channel/* (BODY:<data>)
     
@@ -343,6 +404,12 @@ router.get('/', (req, res) => {
       Removes a private prefix
       Example: GET /remove/myChannel/private?key=KEY&prefix=server/:clientId/*
 
+    GET /create/:channel/persist?key=KEY&path=PATH
+      Creates a persistant message at a PATH that all clients can fetch
+
+    GET /remove/:channel/persist?key=KEY&path=PATH
+      Removes  persistant message at a PATH
+  
     GET /list/:channel/private?key=KEY&content=[0,1] -> <data>
       Lists all private messages currently on 
     GET /list/:channel/public?key=KEY -> <data>
@@ -378,14 +445,21 @@ router.get('/', (req, res) => {
   `)
 })
 
+router.get('/channel/:channel/', (req, res) => getMessage(req, res, req.params.channel, "", PRIVATE))
+
 router.get('/create/:channel', createChannel)
 router.get('/remove/:channel', removeChannel)
-router.get('/create/:channel/private', (req, res) => createPrefix(req, res, PRIVATE))
-router.get('/remove/:channel/private', (req, res) => removePrefix(req, res, PRIVATE))
-router.get('/create/:channel/public', (req, res) => createPrefix(req, res, PUBLIC))
-router.get('/remove/:channel/public', (req, res) => removePrefix(req, res, PUBLIC))
-router.get('/channel/:channel/', (req, res) => getMessage(req, res, req.params.channel, "", PRIVATE))
+
 router.get('/list/:channel/private', (req, res) => listMessages(req, res, PRIVATE))
 router.get('/list/:channel/public', (req, res) => listMessages(req, res, PUBLIC))
+
+router.get('/create/:channel/private', (req, res) => createPrefix(req, res, PRIVATE))
+router.get('/remove/:channel/private', (req, res) => removePrefix(req, res, PRIVATE))
+
+router.get('/create/:channel/public', (req, res) => createPrefix(req, res, PUBLIC))
+router.get('/remove/:channel/public', (req, res) => removePrefix(req, res, PUBLIC))
+
+router.post('/create/:channel/persist', createPersistantMessage)
+router.get('/remove/:channel/persist', removePersistantMessage)
 
 module.exports = router

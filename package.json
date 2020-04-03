@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node bin/swc.js",
-    "debug": "node --nolazy --inspect-brk=9229 bin/swc.js ",
+    "debug": "set DEBUG=swc && node --nolazy --inspect-brk=9229 bin/swc.js ",
     "lint": "eslint .",
     "test": "mocha"
   },
